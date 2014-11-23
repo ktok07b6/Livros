@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="livros" default="compile" basedir=".">
+  <property name="java.encoding" value="UTF-8" />
+  <property name="source.dir" value="./src;./tests" />
+  <property name="dest.dir" value="./bin" />
+  <property name="libs.dir" value="./libs" />
+  <property name="java.compilerargs" value="-source 1.4 -g" />
+
+  <target name="make_dir">
+    <mkdir dir="${dest.dir}"/>
+  </target>
+
+
+  <target name="compile" depends="make_dir">
+	<path id="libs.path">
+	  <fileset dir="${libs.dir}" includes="*.jar"/>
+	</path>
+
+	<javac encoding="${java.encoding}"
+		   srcdir="${source.dir}"
+		   destdir="${dest.dir}"
+		   excludes="build.xml"
+		   classpathref="libs.path" 
+		   includeantruntime="false" 
+		   debug="true"
+		   >
+	  <compilerarg line="${java.compilerargs}" />
+	</javac>
+  </target>
+  <target name="jar">
+	<jar basedir="bin" jarfile="livros.jar">
+	  <manifest>
+		<attribute name="Main-Class" value="livros.Livros"/>
+	  </manifest>
+	</jar>
+  </target>
+  <target name="testjar">
+	<jar basedir="bin" jarfile="test.jar">
+	  <manifest>
+		<attribute name="Main-Class" value="livros.LivrosTest"/>
+	  </manifest>
+	</jar>
+  </target>
+  <target name="clean">
+	<delete dir="${dest.dir}" verbose="true" />
+  </target>
+</project>
