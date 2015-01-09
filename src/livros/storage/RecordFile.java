@@ -5,7 +5,10 @@ import livros.Log;
 import livros.db.Record;
 import livros.db.Table;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.RandomAccessFile;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -21,7 +24,7 @@ import java.util.List;
 class RecordFile
 {
 	private static final byte[] MAGIC = {'r', 'e','c','h'};
-	private static final int HEADER_SIZE = 4+4+4+4+4;
+	private static final int HEADER_SIZE = ChunkHeader.CHUNK_SIZE;//4+4+4+4+4;
 
 	Table mTable;
 	RandomAccessFile mFile;
@@ -29,6 +32,8 @@ class RecordFile
 	int mChunkCount;
 	int mHeadChunkId;
 	int mFreeHeadChunkId;
+
+	private static byte[] chunkBuf = new byte[ChunkHeader.CHUNK_SIZE];
 
 	public RecordFile(Table t) {
 		mTable = t;
@@ -121,12 +126,15 @@ class RecordFile
 
 			long startPos = mFile.getFilePointer();
 
+			mFile.readFully(chunkBuf, 0, ChunkHeader.CHUNK_SIZE - ChunkHeader.HEADER_SIZE);
+			InputStream is = new ByteArrayInputStream(chunkBuf, 0, ChunkHeader.CHUNK_SIZE - ChunkHeader.HEADER_SIZE);
+			DataInputStream din = new DataInputStream(is);
 			for (int i = 0; i < count; i++) {
-				Record r = RecordConverter.readRecord(mFile, mTable);
+				Record r = RecordConverter.readRecord(din, mTable);
 				r.setPosition(i, chunkid);
 				list.add(r);
 			}
-			int read = (int)(mFile.getFilePointer() - startPos);
+			int read = ChunkHeader.CHUNK_SIZE - ChunkHeader.HEADER_SIZE;//(int)(mFile.getFilePointer() - startPos);
 			Debug.assertTrue(read <= (ChunkHeader.CHUNK_SIZE - ChunkHeader.HEADER_SIZE));
 			StorageManager.instance().diagAddReadRecordBytes(read);
 			return read;
