@@ -12,6 +12,8 @@ import livros.vm.VM;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +31,24 @@ public class Livros {
 			StorageManager.TMP_DIR="/sdcard/tmp/";
 		}
 
+		boolean oneline = false;
+		InputStream inputStream = null;
+		if (argv.length > 0) {
+			Log.d(argv[0]);
+			try {
+				inputStream = new FileInputStream(argv[0]);
+				oneline = false;
+			} catch (Exception ex) {
+				Log.e("file not found " + argv[0]);
+				return;
+			}
+		} else {
+			inputStream = System.in;
+		}
 		Livros livros = new Livros();
 		livros.open();
-		livros.mainLoop();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+		livros.mainLoop(reader, oneline);
 		livros.close();
 	}
 
@@ -65,9 +82,8 @@ public class Livros {
 		mDatabase.close();
 	}
 
-	public void mainLoop() {
+	public void mainLoop(BufferedReader reader, boolean oneline) {
 		int state = ST_READ;
-		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 		try {
 			String line = null;
 			List tokens = null;
@@ -136,7 +152,7 @@ public class Livros {
 					System.out.println("done: " +ast.toString());
 					System.out.println("time: " + (endTime - startTime) + "ms");
 					//System.out.println("disc read record access: " + StorageManager.instance().diagReadRecordBytes()+ "bytes");
-					if (tokens.size() > tokenIndex) {
+					if (tokens.size() > tokenIndex && !oneline) {
 						state = ST_DETECT_STM;
 					} else {
 						state = ST_READ;
