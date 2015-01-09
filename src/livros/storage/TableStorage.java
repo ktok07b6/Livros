@@ -15,6 +15,7 @@ import livros.db.Value;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,11 +30,13 @@ public class TableStorage
 	private List mCurrentRecordList;
 	private Map mBTreeMap;
 	private BTree mRecIdBTree;
+	private Map mChunkCacheMap;
 
 	public TableStorage(Table t) {
 		mTable = t;
 		mBTreeMap = new HashMap();
 		mRecIdBTree = new BTree();
+		mChunkCacheMap = new HashMap();
 	}
 
 	public boolean init() {
@@ -62,15 +65,23 @@ public class TableStorage
 		VirtualChunk vc = mChunkManager.findChunk(chunkid);
 		if (vc.state() == ChunkHeader.NEWER) {
 			NewerChunk nc = (NewerChunk)vc;
+			//Log.d("getRecord from mem " + index + " " + chunkid);
 			return nc.get(index);
 		} else {
 			//FIXME: use cache
-			
-			//List list = new ArrayList();
-			//mRecordFile.readRecords(vc.id(), vc.recordCount(), list);
-			//return (Record)list.get(index);
-			
-			return mRecordFile.readRecord(vc.id(), index);
+					
+			List list = (List)mChunkCacheMap.get(new Integer(chunkid));
+			if (list != null) {
+				//Log.d("getRecord use cache " + index + " " + chunkid);
+				return (Record)list.get(index);
+			} else {
+				//Log.d("getRecord from file " + index + " " + chunkid);
+				list = new ArrayList();
+				mRecordFile.readRecords(vc.id(), vc.recordCount(), list);
+				mChunkCacheMap.put(new Integer(chunkid), list);
+				return (Record)list.get(index);
+			}
+			//return mRecordFile.readRecord(vc.id(), index);
 		}
 	}
 
@@ -250,8 +261,11 @@ public class TableStorage
 	public void delete(Record r) {
 		Log.v("delete " + r);
 		Debug.startProfile();
-
+		//remove chunk cache
+		mChunkCacheMap.remove(new Integer(r.chunkid()));
+ 
 		VirtualChunk vc = mChunkManager.findChunk(r.chunkid());
+
 		NewerChunk nc;
 		if (vc.state() == ChunkHeader.STABLE) {
 			//Log.d("del in stable id:"+vc.id());
@@ -300,6 +314,9 @@ public class TableStorage
 		//Log.d("update " + r);
 		//Log.d(toString());
 		Debug.startProfile();
+
+		//remove chunk cache
+		mChunkCacheMap.remove(new Integer(r.chunkid()));
 
 		VirtualChunk vc = mChunkManager.findChunk(r.chunkid());
 		NewerChunk nc;
