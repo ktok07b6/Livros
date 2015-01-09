@@ -2,9 +2,9 @@ package livros.compiler;
 
 public class UnaryExpr extends ASTExpr
 {
-	public static final int LOGICAL_NOT = 0;
-	public static final int PLUS = 1;
-	public static final int MINUS = 2;
+	public static final int LOGICAL_NOT = 20;
+	public static final int PLUS = 99;
+	public static final int MINUS = 34;
 
 	int mOp;
 	ASTExpr mExpr;

@@ -346,7 +346,11 @@ public class Translator implements ASTVisitor
 
 	public Object visit(UnaryExpr ast) throws Exception {
 		Expr e = (Expr)ast.mExpr.accept(this);
-		return new UnExpr(ast.mOp, e);
+		if (ast.mOp == UnaryExpr.PLUS) {
+			return e;
+		} else {
+			return new UnExpr(ast.mOp, e);
+		}
 	}
 
 	public Object visit(FuncExpr ast) throws Exception {
