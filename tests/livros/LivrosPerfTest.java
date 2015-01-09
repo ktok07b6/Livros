@@ -4,6 +4,7 @@ import livros.compiler.AST;
 import livros.storage.StorageManager;
 import java.io.File;
 import java.util.List;
+import java.util.Random;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -44,10 +45,16 @@ public class LivrosPerfTest
 		"create table inserttest(i1 int, i2 int, t1 char(64), t2 char(64))";
 	static final String CREATE_TABLE_INSERT_PRIMARY = 
 		"create table inserttest(i1 int primary key, i2 int, t1 char(64), t2 char(64))";
+	static final String CREATE_TABLE_SELECT = 
+		"create table selecttest(i1 int, i2 int, t1 char(64), t2 varchar(64))";
+	static final String CREATE_TABLE_SELECT_PRIMARY = 
+		"create table selecttest(i1 int primary key, i2 int, t1 char(64), t2 varchar(64))";
 
 	static int TEST_COUNT = 10000;
 
 	public static void exec(String sql) {
+		//System.out.println("exec:"+sql);
+
 		List tokens = livros.scan(sql);
 		AST ast = livros.parse(tokens);
 		List insts = livros.translate(ast);
@@ -60,6 +67,8 @@ public class LivrosPerfTest
 			testLivrosInsert(schema);
 		} else if (type.equals("select")) {
 			testLivrosSelect(schema);
+		} else if (type.equals("init")) {
+			testLivrosInitForSelect(schema);
 		} else if (type.equals("delete")) {
 			testLivrosDelete(schema);
 		}
@@ -86,17 +95,29 @@ public class LivrosPerfTest
 		//exec("select * from inserttest");
 	}
 
-	public static void testLivrosSelect(String schema) {
-		System.out.print("test select Livros:");
-		
+	public static void testLivrosInitForSelect(String schema) {
+		System.out.print("test init select Livros:");
+		delete("selecttest");		
 		exec(schema);
+
+		StorageManager.instance().diagResetReadRecordBytes();
+		long startTime = System.nanoTime();
+
 		for (int i = 0; i < TEST_COUNT; i++) {
-			exec("insert into inserttest values(" + i + "," + i + "," + 
+			exec("insert into selecttest values(" + i + "," + i + "," + 
 				 "'"+String.valueOf(i)+"'" + "," + 
 				 "'"+String.valueOf(i)+"'" + ")");
 		}
 		exec("commit");
-		
+
+		long endTime = System.nanoTime();
+		System.out.print(" " + ((endTime-startTime)/1000000) + "ms\t");
+		System.out.print(" / " + (StorageManager.instance().diagReadRecordBytes())+ " B(access)");
+	}
+
+	public static void testLivrosSelect(String schema) {
+		System.out.print("test select Livros:");
+	
 		/*
 		exec("create table selecttest"+TEST_COUNT+"(i1 int, i2 int, t1 char(64), t2 char(64))");
 		for (int i = 0; i < TEST_COUNT; i++) {
@@ -107,18 +128,15 @@ public class LivrosPerfTest
 		}
 		
 		*/
-		exec("commit");
+
 		StorageManager.instance().diagResetReadRecordBytes();
 		long startTime = System.nanoTime();
-		for (int i = 0; i < TEST_COUNT; i++) {
-			exec("select * from inserttest where i1 = 0");
+		for (int i = 0; i < TEST_COUNT*2; i++) {
+			exec("select * from selecttest where i1 = " + i%TEST_COUNT);
 		}
 		long endTime = System.nanoTime();
 		System.out.print(" " + ((endTime-startTime)/1000000) + "ms\t");
 		System.out.print(" / " + (StorageManager.instance().diagReadRecordBytes())+ " B(access)");
-		
-		//exec("select * from inserttest");
-		
 	}
 
 	public static void testLivrosDelete(String schema) {
@@ -222,7 +240,7 @@ public class LivrosPerfTest
 			String sql = schema;
 			statement.execute(sql);
 			for (int i = 0; i < TEST_COUNT; i++) {
-				sql = "insert into inserttest values(" + i + "," + i + "," + 
+				sql = "insert into selecttest values(" + i + "," + i + "," + 
 					"'"+String.valueOf(i)+"'" + "," + 
 					"'"+String.valueOf(i)+"'" + ")";
 				statement.execute(sql);
@@ -232,7 +250,7 @@ public class LivrosPerfTest
 			{
 				long startTime = System.nanoTime();
 				for (int i = 0; i < TEST_COUNT; i++) {
-					sql = "select * from inserttest where i1 = "+i;
+					sql = "select * from selecttest where i1 = "+i;
 					ResultSet result = statement.executeQuery(sql);
 					if (true) {
 						while (result.next()) {
@@ -255,35 +273,6 @@ public class LivrosPerfTest
 		}
 	}
 
-	public static void printMemoryInfo() {
-		long free = Runtime.getRuntime().freeMemory() / (1024*1024);
-		long total = Runtime.getRuntime().totalMemory() / (1024*1024);
-		long max = Runtime.getRuntime().maxMemory() / (1024*1024);
-		long used = total - free;
-		double ratio = (used * 100 / (double)total);
-		System.out.println("/ " + total + "MB / " + free + "MB / " + used + "MB / " + max + "MB");
-
-		// Place this code just before the end of the program
-		/*
-		try {
-			String memoryUsage = new String();
-			List pools = ManagementFactory.getMemoryPoolMXBeans();
-			for (int i = 0; i < pools.size(); i++) {
-				MemoryPoolMXBean pool = (MemoryPoolMXBean)pools.get(i);
-				MemoryUsage peak = pool.getPeakUsage();
-				memoryUsage += String.format("Peak %s memory used: %,d%n", pool.getName(),peak.getUsed());
-				memoryUsage += String.format("Peak %s memory reserved: %,d%n", pool.getName(), peak.getCommitted());
-			}
-
-			// we print the result in the console
-			System.out.println(memoryUsage);
- 
-		} catch (Throwable t) {
-			System.err.println("Exception in agent: " + t);
-		}
-		*/
-	}
-
 	public static void cleanup() {
 		delete("derby_sample1");
 		delete("h2_sample1");
@@ -302,25 +291,38 @@ public class LivrosPerfTest
 		Livros.NO_SHOW = true;
 
 		if (args.length < 4) {
-			System.out.println("usage : [livros|derby|h2] [insert|select] [none|primary] [row count]");
+			System.out.println("usage : [livros|derby|h2] [insert|select|init] [none|primary] [row count]");
 			return;
 		}
 		final String engine = args[0];
 		final String type = args[1];
-		final String insert = args[2];
+		final String constraint = args[2];
 		TEST_COUNT = Integer.parseInt(args[3]);
 
-		if (false/*type.equals("select")*/) {
+		String schema = "";
+		if (type.equals("init")) {
 			StorageManager.DB_FILE = "livros_test_select.db";
+			delete(StorageManager.DB_FILE);
+			if (constraint.equals("none")) {
+				schema = CREATE_TABLE_SELECT;
+			} else if (constraint.equals("primary")) {
+				schema = CREATE_TABLE_SELECT_PRIMARY;
+			}
+		} else if (type.equals("select")) {
+			StorageManager.DB_FILE = "livros_test_select.db";
+			if (constraint.equals("none")) {
+				schema = CREATE_TABLE_SELECT;
+			} else if (constraint.equals("primary")) {
+				schema = CREATE_TABLE_SELECT_PRIMARY;
+			}
 		} else {
 			StorageManager.DB_FILE = "livros_test.db";
 			delete(StorageManager.DB_FILE);
-		}
-		String schema = "";
-		if (insert.equals("none")) {
-			schema = CREATE_TABLE_INSERT;
-		} else if (insert.equals("primary")) {
-			schema = CREATE_TABLE_INSERT_PRIMARY;
+			if (constraint.equals("none")) {
+				schema = CREATE_TABLE_INSERT;
+			} else if (constraint.equals("primary")) {
+				schema = CREATE_TABLE_INSERT_PRIMARY;
+			}
 		}
 
 		if (engine.equals("livros")) {
@@ -331,6 +333,6 @@ public class LivrosPerfTest
 			testH2(schema, type);
 		}
 
-		printMemoryInfo();
+		Debug.printMemoryInfo();
 	}
 }

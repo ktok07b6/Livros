@@ -78,4 +78,35 @@ public class Debug
 			}
 		}
 	}
+
+	public static void printMemoryInfo() {
+		long free = Runtime.getRuntime().freeMemory() / (1024*1024);
+		long total = Runtime.getRuntime().totalMemory() / (1024*1024);
+		long max = Runtime.getRuntime().maxMemory() / (1024*1024);
+		long used = total - free;
+		double ratio = (used * 100 / (double)total);
+		System.out.println("/ total:" + total + "MB / free:" + free + "MB / used:" + used + "MB / max:" + max + "MB");
+
+		// Place this code just before the end of the program
+		/*
+		try {
+			String memoryUsage = new String();
+			List pools = ManagementFactory.getMemoryPoolMXBeans();
+			for (int i = 0; i < pools.size(); i++) {
+				MemoryPoolMXBean pool = (MemoryPoolMXBean)pools.get(i);
+				MemoryUsage peak = pool.getPeakUsage();
+				memoryUsage += String.format("Peak %s memory used: %,d%n", pool.getName(),peak.getUsed());
+				memoryUsage += String.format("Peak %s memory reserved: %,d%n", pool.getName(), peak.getCommitted());
+			}
+
+			// we print the result in the console
+			System.out.println(memoryUsage);
+ 
+		} catch (Throwable t) {
+			System.err.println("Exception in agent: " + t);
+		}
+		*/
+	}
+
+
 }

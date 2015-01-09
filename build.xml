@@ -41,6 +41,13 @@
 	  </manifest>
 	</jar>
   </target>
+  <target name="perftest">
+	<jar basedir="bin" jarfile="perftest.jar">
+	  <manifest>
+		<attribute name="Main-Class" value="livros.LivrosPerfTest"/>
+	  </manifest>
+	</jar>
+  </target>
   <target name="clean">
 	<delete dir="${dest.dir}" verbose="true" />
   </target>
