@@ -52,9 +52,18 @@ public class DataBase
 
 	public void commitAll() {
 		Iterator iter = mTables.iterator();
+		List deletes = new ArrayList();
 		while (iter.hasNext()) {
 			Table t = (Table)iter.next();
 			commitRecords(t);
+			if (t.isDeleting()) {
+				deletes.add(t);
+			}
+		}
+		iter = deletes.iterator();
+		while (iter.hasNext()) {
+			Table t = (Table)iter.next();
+			mTables.remove(t);
 		}
 		commitSchema();
 	}
@@ -90,7 +99,6 @@ public class DataBase
 
 	public boolean delTable(Table t) {
 		if (t.delete()) {
-			mTables.remove(t);
 			return true;
 		} else {
 			return false;
@@ -102,7 +110,7 @@ public class DataBase
 		Iterator iter = mTables.iterator();
 		while (iter.hasNext()) {
 			Table t = (Table)iter.next();
-			if (t.name().equals(name)) {
+			if (t.name().equals(name) && !t.isDeleting()) {
 				return t;
 			}
 		}
